@@ -28,8 +28,22 @@ export class SalesController {
     @Query('clientId') clientId?: string,
     @Query('productId') productId?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
   ) {
-    return this.service.findAll({ from, to, paymentStatus, paymentMethod, clientId, productId, categoryId });
+    return this.service.findAll({
+      from,
+      to,
+      paymentStatus,
+      paymentMethod,
+      clientId,
+      productId,
+      categoryId,
+      search,
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+    });
   }
 
   @Get('stats/summary')
@@ -40,6 +54,11 @@ export class SalesController {
   @Get('stats/monthly')
   monthly(@Query('year') year?: string) {
     return this.service.monthlyStats(year);
+  }
+
+  @Post('import')
+  import(@Body('rows') rows: any[]) {
+    return this.service.importRows(rows || []);
   }
 
   @Get(':id')

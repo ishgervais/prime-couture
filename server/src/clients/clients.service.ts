@@ -8,7 +8,12 @@ export class ClientsService {
   private readonly prisma = new PrismaClient();
 
   async create(dto: CreateClientDto) {
-    return this.prisma.client.create({ data: dto });
+    return this.prisma.client.create({
+      data: {
+        ...dto,
+        phone: dto.phone ?? 'N/A',
+      },
+    });
   }
 
   async findAll(search?: string) {
@@ -67,7 +72,13 @@ export class ClientsService {
 
   async update(id: string, dto: UpdateClientDto) {
     await this.ensureExists(id);
-    return this.prisma.client.update({ where: { id }, data: dto });
+    return this.prisma.client.update({
+      where: { id },
+      data: {
+        ...dto,
+        phone: dto.phone ?? undefined,
+      },
+    });
   }
 
   private async ensureExists(id: string) {

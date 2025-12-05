@@ -79,7 +79,7 @@ export default function NewSalePage() {
             e.preventDefault()
             setMessage(null)
             setError(null)
-            if (!/^0[0-9]{9}$/.test(form.clientPhone)) {
+            if (form.clientPhone && !/^0[0-9]{9}$/.test(form.clientPhone)) {
               setError('Phone must be 10 digits starting with 0')
               return
             }
@@ -135,9 +135,7 @@ export default function NewSalePage() {
             />
           </div>
           <div style={{ display: 'grid', gap: '0.35rem' }}>
-            <label style={{ color: '#0f172a', fontWeight: 600 }}>
-              Client phone (format: 07XXXXXXXX) <span style={{ color: '#dc2626' }}>*</span>
-            </label>
+            <label style={{ color: '#0f172a', fontWeight: 600 }}>Client phone (format: 07XXXXXXXX)</label>
             <input
               className="input"
               type="tel"
@@ -150,7 +148,6 @@ export default function NewSalePage() {
                 setForm({ ...form, clientPhone: digits })
               }}
               title="Use 10 digits like 0788123456 (must start with 0)"
-              required
             />
           </div>
           <div style={{ display: 'grid', gap: '0.35rem' }}>

@@ -4,8 +4,9 @@ export class CreateClientDto {
   @IsString()
   fullName!: string;
 
+  @IsOptional()
   @IsString()
-  phone!: string;
+  phone?: string;
 
   @IsOptional()
   @IsString()

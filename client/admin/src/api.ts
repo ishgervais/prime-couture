@@ -194,6 +194,10 @@ export const salesApi = {
     const { data } = await api.post(`/admin/sales/${id}/payments`, payload)
     return data
   },
+  async importRows(rows: any[]) {
+    const { data } = await api.post('/admin/sales/import', { rows })
+    return data
+  },
 }
 
 export default api

@@ -1,10 +1,52 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { salesApi } from '../api'
 
 export default function SalesTablePage() {
-  const { data, isLoading, error } = useQuery({ queryKey: ['sales'], queryFn: () => salesApi.list() })
+  const qc = useQueryClient()
+  const now = useMemo(() => new Date(), [])
+  const [yearFilter, setYearFilter] = useState<string>(String(now.getFullYear()))
+  const [monthFilter, setMonthFilter] = useState<string>(String(now.getMonth() + 1)) // 1-12 as string
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all')
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all')
+  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [importing, setImporting] = useState(false)
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['sales', yearFilter, monthFilter, paymentStatusFilter, paymentMethodFilter, search, page, pageSize],
+    queryFn: () => {
+      const params: any = {}
+      const yearNum = yearFilter !== 'all' ? Number(yearFilter) : null
+      const monthNum = monthFilter !== 'all' ? Number(monthFilter) : null
+      if (yearNum) {
+        if (monthNum) {
+          const from = new Date(yearNum, monthNum - 1, 1)
+          const to = new Date(yearNum, monthNum, 0)
+          params.from = from.toISOString().slice(0, 10)
+          params.to = to.toISOString().slice(0, 10)
+        } else {
+          params.from = `${yearNum}-01-01`
+          params.to = `${yearNum}-12-31`
+        }
+      } else if (monthNum) {
+        const y = now.getFullYear()
+        const from = new Date(y, monthNum - 1, 1)
+        const to = new Date(y, monthNum, 0)
+        params.from = from.toISOString().slice(0, 10)
+        params.to = to.toISOString().slice(0, 10)
+      }
+      if (paymentStatusFilter !== 'all') params.paymentStatus = paymentStatusFilter
+      if (paymentMethodFilter !== 'all') params.paymentMethod = paymentMethodFilter
+      if (search.trim()) params.search = search.trim()
+      params.page = page
+      params.pageSize = pageSize
+      return salesApi.list(params)
+    },
+  })
+  const items = data?.items ?? []
   const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>({
     date: true,
     pickup: true,
@@ -23,9 +65,6 @@ export default function SalesTablePage() {
   })
   const [openColumns, setOpenColumns] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
-  const now = useMemo(() => new Date(), [])
-  const [yearFilter, setYearFilter] = useState<string>(String(now.getFullYear()))
-  const [monthFilter, setMonthFilter] = useState<string>(String(now.getMonth() + 1)) // 1-12 as string
 
   const formatNumber = (value: any) => {
     const num = Number(value ?? 0)
@@ -88,17 +127,66 @@ export default function SalesTablePage() {
     URL.revokeObjectURL(url)
   }
 
+  const parseCsv = async (file: File) => {
+    const text = await file.text()
+    const lines = text.trim().split(/\r?\n/)
+    if (!lines.length) return []
+    const header = lines[0].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map((h) => h.replace(/"/g, '').trim())
+    return lines.slice(1).map((line) => {
+      const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map((c) => c.replace(/^"|"$/g, '').trim())
+      const row: any = {}
+      header.forEach((key, idx) => {
+        const normalized = key.toLowerCase().replace(/\s+/g, '')
+        const val = cols[idx]
+        if (row[normalized] && (!val || val.length === 0)) return
+        row[normalized] = val
+      })
+      return {
+        date: row['date'],
+        pickupDate: row['pickupdate'],
+        customerName: row['customername'],
+        product: row['product'],
+        productType: row['producttype'],
+        qty: row['qty'] || row['quantity'],
+        unitPrice: row['unitprice'],
+        total: row['total'] || row['totalamount'],
+        prePayment: row['pre-payment'] || row['prepayment'] || row['prepaymentamount'],
+        remainingAmount: row['remainingamount'],
+        productionCost: row['productioncost'],
+        profit: row['profit'],
+        paymentMethod: row['paymentmethod'],
+        status: row['status'],
+        notes: row['notes'],
+      }
+    })
+  }
+
+  const handleImport = async (file?: File | null) => {
+    if (!file) return
+    setImporting(true)
+    try {
+      const rows = await parseCsv(file)
+      const result = await salesApi.importRows(rows)
+      window.alert(`Import done: ${result.created ?? rows.length} created${result.errors?.length ? `, ${result.errors.length} errors` : ''}`)
+      qc.invalidateQueries({ queryKey: ['sales'] })
+    } catch (err: any) {
+      window.alert(err?.message || 'Failed to import CSV')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const years = useMemo(() => {
     const set = new Set<string>()
-    if (data) {
-      data.forEach((sale: any) => {
+    if (items) {
+      items.forEach((sale: any) => {
         const y = new Date(sale.saleDate).getFullYear()
         set.add(String(y))
       })
     }
     set.add(String(now.getFullYear()))
     return ['all', ...Array.from(set).sort((a, b) => Number(b) - Number(a))]
-  }, [data, now])
+  }, [items, now])
 
   // Ensure current selection exists even before data loads
   useEffect(() => {
@@ -107,17 +195,19 @@ export default function SalesTablePage() {
     }
   }, [years, yearFilter])
 
-  const filteredSales = useMemo(() => {
-    if (!data) return []
-    return data.filter((sale: any) => {
-      const d = new Date(sale.saleDate)
-      const y = d.getFullYear()
-      const m = d.getMonth() + 1
-      const yearOk = yearFilter === 'all' ? true : y === Number(yearFilter)
-      const monthOk = monthFilter === 'all' ? true : m === Number(monthFilter)
-      return yearOk && monthOk
-    })
-  }, [data, yearFilter, monthFilter])
+  const filteredSales = items
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+
+  // debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 300)
+    return () => clearTimeout(t)
+  }, [searchInput])
+
+  useEffect(() => {
+    setPage(1)
+  }, [yearFilter, monthFilter, paymentStatusFilter, paymentMethodFilter, search])
 
   const totals = useMemo(() => {
     return filteredSales.reduce(
@@ -132,14 +222,15 @@ export default function SalesTablePage() {
     )
   }, [filteredSales])
 
+  const agg = data?.aggregates || {}
   const cards = useMemo(
     () => [
-      { label: 'Total Sales', value: formatNumber(totals.total) },
-      { label: 'Total Paid', value: formatNumber(totals.paid) },
-      { label: 'Outstanding', value: formatNumber(totals.remaining) },
-      { label: 'Profit', value: formatNumber(totals.profit) },
+      { label: 'Total Sales', value: formatNumber(agg.totalAmount ?? totals.total) },
+      { label: 'Total Paid', value: formatNumber(agg.totalPaid ?? totals.paid) },
+      { label: 'Outstanding', value: formatNumber(agg.remainingAmount ?? totals.remaining) },
+      { label: 'Profit', value: formatNumber(agg.profit ?? totals.profit) },
     ],
-    [totals],
+    [agg.totalAmount, agg.totalPaid, agg.remainingAmount, agg.profit, totals],
   )
 
   const maxRemaining = useMemo(() => Math.max(...filteredSales.map((s: any) => Number(s.remainingAmount ?? 0)), 0), [filteredSales])
@@ -225,9 +316,84 @@ export default function SalesTablePage() {
               ))}
             </select>
           </div>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <label style={{ color: '#0f172a', fontWeight: 600 }}>Status</label>
+            <select className="input" value={paymentStatusFilter} onChange={(e) => setPaymentStatusFilter(e.target.value)}>
+              <option value="all">All</option>
+              <option value="FULL">Full</option>
+              <option value="PARTIAL">Partial</option>
+              <option value="NONE">None</option>
+            </select>
+          </div>
+          <div style={{ display: 'grid', gap: '0.25rem' }}>
+            <label style={{ color: '#0f172a', fontWeight: 600 }}>Payment</label>
+            <select className="input" value={paymentMethodFilter} onChange={(e) => setPaymentMethodFilter(e.target.value)}>
+              <option value="all">All</option>
+              <option value="MOBILE_MONEY">Mobile money</option>
+              <option value="CASH">Cash</option>
+              <option value="CARD">Card</option>
+              <option value="BANK_TRANSFER">Bank transfer</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div style={{ display: 'grid', gap: '0.25rem', flex: 1, minWidth: '160px' }}>
+            <label style={{ color: '#0f172a', fontWeight: 600 }}>Search (client/product)</label>
+            <input
+              className="input"
+              placeholder="Type to filter"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+          </div>
           <button type="button" className="pill" onClick={exportCsv} style={{ marginTop: '1.25rem' }}>
             Export CSV
           </button>
+          <label className="pill" style={{ marginTop: '1.25rem', cursor: 'pointer', display: 'inline-flex', gap: '0.4rem' }}>
+            Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              style={{ display: 'none' }}
+              onChange={(e) => handleImport(e.target.files?.[0])}
+              disabled={importing}
+            />
+          </label>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ color: '#0f172a' }}>Rows per page:</span>
+            <select className="input" style={{ width: '90px' }} value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+              {[10, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button className="pill" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Prev
+            </button>
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const p = idx + 1
+                const active = p === page
+                return (
+                  <button
+                    key={p}
+                    className="pill"
+                    style={{ background: active ? '#0f172a' : '#e2e8f0', color: active ? '#fff' : '#0f172a' }}
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </button>
+                )
+              })}
+            </div>
+            <button className="pill" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+              Next
+            </button>
+          </div>
         </div>
         <div
           style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem', position: 'relative' }}
@@ -313,7 +479,14 @@ export default function SalesTablePage() {
             </tr>
           </thead>
           <tbody>
-            {filteredSales.map((sale: any, idx: number) => {
+            {(isLoading ? Array.from({ length: 6 }) : filteredSales).map((sale: any, idx: number) => {
+              if (isLoading) {
+                return (
+                  <tr key={`skeleton-${idx}`}>
+                    <td className="skeleton" style={{ height: '18px' }} colSpan={visibleCols.notes ? 15 : 14}></td>
+                  </tr>
+                )
+              }
               const date = new Date(sale.saleDate).toLocaleDateString()
               const pickup = sale.pickupDate ? new Date(sale.pickupDate).toLocaleDateString() : '—'
               return (
@@ -368,6 +541,43 @@ export default function SalesTablePage() {
             })}
           </tbody>
         </table>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ color: '#0f172a' }}>Rows per page:</span>
+            <select className="input" style={{ width: '90px' }} value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
+              {[10, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button className="pill" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              Prev
+            </button>
+            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const p = idx + 1
+                const active = p === page
+                return (
+                  <button
+                    key={p}
+                    className="pill"
+                    style={{ background: active ? '#0f172a' : '#e2e8f0', color: active ? '#fff' : '#0f172a' }}
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </button>
+                )
+              })}
+            </div>
+            <button className="pill" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

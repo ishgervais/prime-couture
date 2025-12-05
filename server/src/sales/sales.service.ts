@@ -26,17 +26,96 @@ export class SalesService {
     return new Prisma.Decimal(n);
   }
 
+  private pascalCase(name: string) {
+    return name
+      .trim()
+      .split(/\s+/)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  private slugify(text: string) {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  private parseNumber(value?: string | number | null) {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+    const cleaned = value.replace(/,/g, '').trim();
+    const num = Number(cleaned);
+    return Number.isNaN(num) ? 0 : num;
+  }
+
+  private mapPaymentMethod(text?: string): PaymentMethod {
+    const t = (text || '').toLowerCase();
+    if (t.includes('mobile')) return PaymentMethod.MOBILE_MONEY;
+    if (t.includes('cash')) return PaymentMethod.CASH;
+    if (t.includes('card')) return PaymentMethod.CARD;
+    if (t.includes('bank')) return PaymentMethod.BANK_TRANSFER;
+    return PaymentMethod.OTHER;
+  }
+
+  private async ensureDefaultGroups() {
+    const collectionSlug = 'imported';
+    const categorySlug = 'imported';
+    const [collection] = await this.prisma.$transaction([
+      this.prisma.collection.upsert({
+        where: { slug: collectionSlug },
+        create: { name: 'Imported', slug: collectionSlug },
+        update: {},
+      }),
+    ]);
+    const category = await this.prisma.category.upsert({
+      where: { slug: categorySlug },
+      create: { name: 'Imported', slug: categorySlug },
+      update: {},
+    });
+    return { collection, category };
+  }
+
+  private async ensureProduct(title: string, unitPrice: number, categoryId: string, collectionId: string) {
+    const existing = await this.prisma.product.findFirst({
+      where: { title: { equals: title, mode: 'insensitive' } },
+    });
+    if (existing) return existing.id;
+    const slugBase = this.slugify(title);
+    const slug = `${slugBase}-${Math.random().toString(36).slice(2, 6)}`;
+    const product = await this.prisma.product.create({
+      data: {
+        title,
+        slug,
+        description: 'Imported record',
+        priceAmount: this.toDecimal(unitPrice || 0),
+        priceCurrency: Currency.RWF,
+        isActive: false,
+        collectionId,
+        categoryId,
+      },
+    });
+    return product.id;
+  }
+
   private async ensureClient(dto: CreateSaleDto): Promise<string> {
     if (dto.clientId) return dto.clientId;
-    if (!dto.clientName || !dto.clientPhone) {
-      throw new BadRequestException('Provide clientId or clientName + clientPhone');
+    if (!dto.clientName) {
+      throw new BadRequestException('Provide clientId or clientName');
     }
     const newClient: CreateClientDto = {
       fullName: dto.clientName,
-      phone: dto.clientPhone,
+      phone: dto.clientPhone ?? 'N/A',
       email: dto.clientEmail,
     };
-    const client = await this.prisma.client.create({ data: newClient });
+    const client = await this.prisma.client.create({
+      data: {
+        fullName: newClient.fullName,
+        phone: newClient.phone ?? 'N/A',
+        email: newClient.email,
+      },
+    });
     return client.id;
   }
 
@@ -106,6 +185,9 @@ export class SalesService {
     clientId?: string;
     productId?: string;
     categoryId?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
   }) {
     const where: Prisma.SaleWhereInput = {};
     if (params.from || params.to) {
@@ -118,16 +200,54 @@ export class SalesService {
     if (params.clientId) where.clientId = params.clientId;
     if (params.productId) where.productId = params.productId;
     if (params.categoryId) where.product = { categoryId: params.categoryId };
+    if (params.search && params.search.trim().length) {
+      const q = params.search.trim();
+      where.OR = [
+        { client: { fullName: { contains: q, mode: 'insensitive' } } },
+        { product: { title: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
 
-    return this.prisma.sale.findMany({
-      where,
-      orderBy: { saleDate: 'desc' },
-      include: {
-        client: true,
-        product: { include: { category: true } },
-        payments: true,
+    const page = params.page && params.page > 0 ? params.page : 1;
+    const pageSize = params.pageSize && params.pageSize > 0 ? params.pageSize : 10;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total, aggregates] = await Promise.all([
+      this.prisma.sale.findMany({
+        where,
+        orderBy: { saleDate: 'desc' },
+        include: {
+          client: true,
+          product: { include: { category: true } },
+          payments: true,
+        },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.sale.count({ where }),
+      this.prisma.sale.aggregate({
+        where,
+        _sum: {
+          totalAmount: true,
+          totalPaid: true,
+          remainingAmount: true,
+          profit: true,
+        },
+      }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      aggregates: {
+        totalAmount: Number(aggregates._sum.totalAmount ?? 0),
+        totalPaid: Number(aggregates._sum.totalPaid ?? 0),
+        remainingAmount: Number(aggregates._sum.remainingAmount ?? 0),
+        profit: Number(aggregates._sum.profit ?? 0),
       },
-    });
+    };
   }
 
   async findOne(id: string) {
@@ -282,5 +402,131 @@ export class SalesService {
       availableYears,
       months,
     };
+  }
+
+  async importRows(rows: any[]) {
+    const { collection, category } = await this.ensureDefaultGroups();
+    let created = 0;
+    const errors: { row: number; message: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      try {
+        const clientNameRaw = row.customerName || row.customer || row.name || '';
+        const productRaw = row.product || row.productName || '';
+        const statusText = (row.status || '').toString().trim().toLowerCase();
+
+        // ignore rows that are entirely empty or all numeric zeros
+        const numericSignals = ['total', 'totalAmount', 'unitPrice', 'qty', 'quantity', 'prePayment', 'prepay', 'deposit'].map(
+          (k) => row[k],
+        );
+        const hasNonZeroNumeric = numericSignals.some((v) => {
+          if (v === undefined || v === null) return false;
+          return this.parseNumber(v) !== 0;
+        });
+        const hasText = [clientNameRaw, productRaw].some((v) => v && String(v).trim() !== '');
+        if (!hasNonZeroNumeric && !hasText) continue;
+
+        const saleDate = row.date ? new Date(row.date) : null;
+        const pickupDate = row.pickupDate ? new Date(row.pickupDate) : null;
+        if (!saleDate || Number.isNaN(saleDate.getTime())) {
+          errors.push({ row: i + 1, message: 'Invalid or missing date' });
+          continue;
+        }
+        const pickupValid = pickupDate && !Number.isNaN(pickupDate.getTime()) ? pickupDate : null;
+
+        const clientName = this.pascalCase(clientNameRaw || 'Unknown');
+        const existingClient = await this.prisma.client.findFirst({
+          where: { fullName: { equals: clientName, mode: 'insensitive' } },
+        });
+        const client =
+          existingClient ||
+          (await this.prisma.client.create({
+            data: { fullName: clientName, phone: 'N/A' },
+          }));
+
+        let qty = this.parseNumber(row.qty ?? row.quantity);
+        if (!qty || qty <= 0) qty = 1;
+        let unitPrice = this.parseNumber(row.unitPrice ?? row.price);
+        let totalAmount = this.parseNumber(row.total ?? row.totalAmount);
+        if (!totalAmount || totalAmount <= 0) {
+          totalAmount = qty * (unitPrice || 0);
+        }
+        if ((!unitPrice || unitPrice <= 0) && qty > 0 && totalAmount > 0) {
+          unitPrice = totalAmount / qty;
+        }
+        if (!totalAmount || totalAmount <= 0) {
+          errors.push({ row: i + 1, message: 'Missing total/price' });
+          continue;
+        }
+
+        const prePayment = this.parseNumber(row.prePayment ?? row.prepay ?? row.deposit);
+        const productionCost = this.parseNumber(row.productionCost ?? 0);
+        const remainingProvided = row.remainingAmount !== undefined && row.remainingAmount !== '';
+        let remainingAmount = remainingProvided ? this.parseNumber(row.remainingAmount) : totalAmount - prePayment;
+        let totalPaid = prePayment;
+        if (statusText.includes('full')) {
+          totalPaid = totalAmount;
+          remainingAmount = 0;
+        } else if (statusText.includes('partial')) {
+          totalPaid = remainingProvided ? totalAmount - remainingAmount : prePayment;
+        } else if (remainingProvided) {
+          totalPaid = totalAmount - remainingAmount;
+        }
+        if (totalPaid < 0) totalPaid = 0;
+        if (totalPaid > totalAmount) totalPaid = totalAmount;
+        if (remainingAmount === undefined || remainingAmount === null || Number.isNaN(remainingAmount)) {
+          remainingAmount = totalAmount - totalPaid;
+        }
+        if (remainingAmount < 0) remainingAmount = 0;
+        const profit = row.profit !== undefined ? this.parseNumber(row.profit) : totalAmount - productionCost;
+        const paymentStatus = this.calcPaymentStatus(totalPaid, totalAmount);
+
+        const paymentMethod = this.mapPaymentMethod(row.paymentMethod);
+
+        const productTitle = productRaw || 'Imported Product';
+        const productId = await this.ensureProduct(this.pascalCase(productTitle), unitPrice, category.id, collection.id);
+
+        const sale = await this.prisma.sale.create({
+          data: {
+            clientId: client.id,
+            productId,
+            saleDate,
+            pickupDate: pickupValid,
+            quantity: qty,
+            unitPrice: this.toDecimal(unitPrice),
+            currency: Currency.RWF,
+            totalAmount: this.toDecimal(totalAmount),
+            prePaymentAmount: this.toDecimal(prePayment),
+            totalPaid: this.toDecimal(totalPaid),
+            remainingAmount: this.toDecimal(Math.max(remainingAmount, 0)),
+            productionCost: this.toDecimal(productionCost),
+            profit: this.toDecimal(profit),
+            paymentStatus,
+            paymentMethod,
+            status: SaleStatus.ACTIVE,
+            notes: row.notes,
+          },
+        });
+
+        if (totalPaid > 0) {
+          await this.prisma.payment.create({
+            data: {
+              saleId: sale.id,
+              amount: this.toDecimal(totalPaid),
+              currency: Currency.RWF,
+              paymentMethod,
+              paidAt: saleDate,
+              note: 'Imported payment',
+            },
+          });
+        }
+        created += 1;
+      } catch (err: any) {
+        errors.push({ row: i + 1, message: err?.message || 'Failed to import row' });
+      }
+    }
+
+    return { created, errors };
   }
 }
