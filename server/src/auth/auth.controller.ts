@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CreateUserDto } from './dto/create-user.dto';
+import { Delete, Param } from '@nestjs/common';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -42,5 +43,19 @@ export class AuthController {
   @Post('register')
   createUser(@Body() dto: CreateUserDto) {
     return this.authService.createUser(dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('users')
+  list() {
+    return this.authService.listUsers();
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete('users/:id')
+  remove(@Param('id') id: string) {
+    return this.authService.removeUser(id);
   }
 }

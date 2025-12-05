@@ -52,13 +52,26 @@ export default function CategoriesPage() {
         </div>
         <div className="card">
           <h3 style={{ marginTop: 0 }}>All categories</h3>
-          <ul style={{ margin: 0, paddingLeft: '1rem' }}>
-            {(data ?? []).map((c: any) => (
-              <li key={c.id}>
-                {c.name} <span className="badge">{c.slug}</span>
-              </li>
-            ))}
-          </ul>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Slug</th>
+                <th>Created</th>
+                <th>Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data ?? []).map((c: any) => (
+                <tr key={c.id}>
+                  <td>{c.name}</td>
+                  <td>{c.slug}</td>
+                  <td>{new Date(c.createdAt).toLocaleDateString()}</td>
+                  <td>{new Date(c.updatedAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

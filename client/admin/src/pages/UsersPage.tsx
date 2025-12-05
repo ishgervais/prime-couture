@@ -1,9 +1,12 @@
 import { FormEvent, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { usersApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 
 export default function UsersPage() {
   const { user } = useAuth()
+  const qc = useQueryClient()
+  const { data: users, isLoading, error: fetchError } = useQuery({ queryKey: ['users'], queryFn: usersApi.list })
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -23,10 +26,23 @@ export default function UsersPage() {
       const res = await usersApi.create(form)
       setMessage(`User ${res.name} created`)
       setForm({ name: '', email: '', password: 'ChangeMe123!', role: 'USER' })
+      qc.invalidateQueries({ queryKey: ['users'] })
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to create user')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const revoke = async (id: string) => {
+    setError(null)
+    setMessage(null)
+    try {
+      await usersApi.remove(id)
+      setMessage('User revoked')
+      qc.invalidateQueries({ queryKey: ['users'] })
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to revoke user')
     }
   }
 
@@ -57,6 +73,38 @@ export default function UsersPage() {
           </button>
         </form>
         {(message || error) && <p style={{ color: message ? '#166534' : '#b91c1c' }}>{message || error}</p>}
+      </div>
+
+      <div className="card" style={{ marginTop: '1rem' }}>
+        <h3 style={{ marginTop: 0 }}>All users</h3>
+        {isLoading && <p>Loading…</p>}
+        {fetchError && <p style={{ color: '#b91c1c' }}>Failed to load users</p>}
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(users ?? []).map((u: any) => (
+              <tr key={u.id}>
+                <td>{u.name}</td>
+                <td>{u.email}</td>
+                <td><span className="badge">{u.role}</span></td>
+                <td>
+                  {u.id !== user?.id && (
+                    <button className="button" style={{ padding: '0.35rem 0.75rem' }} onClick={() => revoke(u.id)}>
+                      Revoke
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

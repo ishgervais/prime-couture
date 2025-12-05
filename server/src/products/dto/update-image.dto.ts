@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateImageDto {
   @IsOptional()
@@ -8,6 +8,10 @@ export class UpdateImageDto {
   @IsOptional()
   @IsString()
   altText?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isVisible?: boolean;
 
   @IsOptional()
   @IsNumber()

@@ -61,4 +61,16 @@ export class AuthService {
     const { passwordHash: _, ...safeUser } = user;
     return safeUser;
   }
+
+  async listUsers() {
+    const users = await this.prisma.user.findMany({ orderBy: { createdAt: 'desc' } });
+    return users.map(({ passwordHash, ...rest }) => rest);
+  }
+
+  async removeUser(id: string) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new UnauthorizedException('User not found');
+    await this.prisma.user.delete({ where: { id } });
+    return { success: true };
+  }
 }

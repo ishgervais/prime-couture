@@ -63,6 +63,7 @@ model Product {
   priceAmount   Decimal         @db.Decimal(12, 2)
   priceCurrency Currency
   isActive      Boolean         @default(true)
+  viewCount     Int             @default(0)
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   collectionId  String
@@ -78,6 +79,7 @@ model ProductImage {
   productId String
   fileId    String
   altText   String?
+  isVisible Boolean  @default(true)
   position  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

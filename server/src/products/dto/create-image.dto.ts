@@ -1,4 +1,5 @@
 import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean } from 'class-validator';
 
 export class CreateImageDto {
   @IsOptional()
@@ -12,6 +13,10 @@ export class CreateImageDto {
   @IsOptional()
   @IsString()
   altText?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isVisible?: boolean;
 
   @IsOptional()
   @IsNumber()

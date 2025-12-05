@@ -53,8 +53,9 @@ export class ProductsService {
   }
 
   async findBySlug(slug: string) {
-    const product = await this.prisma.product.findUnique({
+    const product = await this.prisma.product.update({
       where: { slug },
+      data: { viewCount: { increment: 1 } },
       include: {
         images: { orderBy: { position: 'asc' }, include: { file: true } },
         collection: true,
@@ -65,13 +66,23 @@ export class ProductsService {
     return product;
   }
 
-  create(data: CreateProductDto) {
+  async create(data: CreateProductDto) {
+    const baseSlug = (data.slug || data.title || 'product')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '')
+
+    const slug = await this.ensureUniqueSlug(baseSlug)
+
     return this.prisma.product.create({
       data: {
         ...data,
+        slug,
         priceAmount: new Prisma.Decimal(data.priceAmount),
       },
-    });
+    })
   }
 
   async update(id: string, data: UpdateProductDto) {
@@ -96,6 +107,7 @@ export class ProductsService {
           productId,
           fileId,
           altText: img.altText,
+          isVisible: img.isVisible ?? true,
           position: img.position ?? index,
         };
       }),
@@ -107,7 +119,7 @@ export class ProductsService {
   async updateImage(productId: string, imageId: string, dto: UpdateImageDto) {
     const image = await this.prisma.productImage.findFirst({ where: { id: imageId, productId } });
     if (!image) throw new NotFoundException('Image not found');
-    let data: Prisma.ProductImageUpdateInput = { altText: dto.altText, position: dto.position };
+    let data: Prisma.ProductImageUpdateInput = { altText: dto.altText, position: dto.position, isVisible: dto.isVisible };
     if (dto.fileId) {
       data = { ...data, file: { connect: { id: dto.fileId } } };
     }
@@ -131,5 +143,17 @@ export class ProductsService {
     if (!img.imageUrl) throw new BadRequestException('imageUrl or fileId is required');
     const file = await this.prisma.file.create({ data: { url: img.imageUrl } });
     return file.id;
+  }
+
+  private async ensureUniqueSlug(slug: string): Promise<string> {
+    let candidate = slug
+    let counter = 1
+    // Try slug, then slug-1, slug-2, ... until free
+    while (true) {
+      const exists = await this.prisma.product.findUnique({ where: { slug: candidate } })
+      if (!exists) return candidate
+      candidate = `${slug}-${counter}`
+      counter += 1
+    }
   }
 }

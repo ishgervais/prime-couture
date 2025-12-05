@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  baseURL: import.meta.env.VITE_API_BASE_URL
 })
 
 api.interceptors.request.use((config) => {
@@ -81,6 +81,10 @@ export const productsApi = {
     const { data } = await api.post(`/products/${productId}/images`, payload)
     return data
   },
+  async updateImage(productId: string, imageId: string, payload: any) {
+    const { data } = await api.patch(`/products/${productId}/images/${imageId}`, payload)
+    return data
+  },
 }
 
 export const ordersApi = {
@@ -120,6 +124,7 @@ export async function uploadToCloudinary(file: File): Promise<string> {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('upload_preset', preset)
+  formData.append('folder', 'prime-couture')
 
   const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
     method: 'POST',
@@ -133,6 +138,14 @@ export async function uploadToCloudinary(file: File): Promise<string> {
 export const usersApi = {
   async create(payload: any) {
     const { data } = await api.post('/auth/register', payload)
+    return data
+  },
+  async list() {
+    const { data } = await api.get('/auth/users')
+    return data
+  },
+  async remove(id: string) {
+    const { data } = await api.delete(`/auth/users/${id}`)
     return data
   },
 }

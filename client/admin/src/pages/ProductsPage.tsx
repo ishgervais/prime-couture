@@ -34,10 +34,16 @@ export default function ProductsPage() {
     e.preventDefault()
     setMessage(null)
     setErrMsg(null)
+    const filesToUpload = images.filter((img) => img.file)
+    if (!filesToUpload.length) {
+      setErrMsg('Add at least one image before creating the product.')
+      return
+    }
     try {
+      const slug = form.slug?.trim() || `${form.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID().slice(0, 6)}`
       const payload: any = {
         title: form.title,
-        slug: form.slug,
+        slug,
         description: form.description,
         priceAmount: Number(form.priceAmount),
         priceCurrency: form.priceCurrency,
@@ -48,17 +54,17 @@ export default function ProductsPage() {
 
       const product = await productsApi.create(payload)
       // Upload and attach any images provided
-      const filesToUpload = images.filter((img) => img.file)
       if (filesToUpload.length) {
         setUploading(true)
-        filesToUpload.forEach(async (img, idx) => {
+        for (let idx = 0; idx < filesToUpload.length; idx++) {
+          const img = filesToUpload[idx]
           const imageUrl = await uploadToCloudinary(img.file as File)
           await productsApi.addImage(product.id, {
             imageUrl,
             altText: img.altText,
             position: idx,
           })
-        })
+        }
       }
 
       setMessage(`Created ${product.title}${filesToUpload.length ? ' with images' : ''}`)
@@ -101,7 +107,12 @@ export default function ProductsPage() {
         {!user && <p style={{ color: '#dc2626' }}>Login required.</p>}
         <form className="card-grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', rowGap: '1rem' }} onSubmit={submitProduct}>
           <input className="input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-          <input className="input" placeholder="Slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} required />
+          <input
+            className="input"
+            placeholder="Slug (auto-generated if empty)"
+            value={form.slug}
+            onChange={(e) => setForm({ ...form, slug: e.target.value })}
+          />
           <select
             className="input"
             value={form.collectionId}
@@ -223,29 +234,48 @@ export default function ProductsPage() {
         <table className="table">
           <thead>
             <tr>
+              <th>Preview</th>
               <th>Title</th>
               <th>Collection</th>
               <th>Category</th>
               <th>Price</th>
+              <th>Views</th>
+              <th>Created</th>
               <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            {(data ?? []).map((product: any) => (
-              <tr key={product.id} style={{ cursor: 'pointer' }}>
-                <td>
-                  <Link to={`/products/${product.slug}`}>{product.title}</Link>
-                </td>
-                <td>{product.collection?.name ?? '—'}</td>
-                <td>{product.category?.name ?? '—'}</td>
-                <td>
-                  {product.priceAmount} {product.priceCurrency}
-                </td>
-                <td>
-                  <span className="badge">{product.isActive ? 'Active' : 'Hidden'}</span>
-                </td>
-              </tr>
-            ))}
+            {(data ?? []).map((product: any) => {
+              const firstImg = (product.images || []).find((img: any) => img.isVisible !== false)
+              return (
+                <tr key={product.id} style={{ cursor: 'pointer' }}>
+                  <td style={{ width: 60 }}>
+                    {firstImg ? (
+                      <img
+                        src={firstImg.file?.url ?? firstImg.url ?? firstImg.imageUrl}
+                        alt={firstImg.altText || product.title}
+                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6 }}
+                      />
+                    ) : (
+                      <span className="badge">No img</span>
+                    )}
+                  </td>
+                  <td>
+                    <Link to={`/products/${product.slug}`}>{product.title}</Link>
+                  </td>
+                  <td>{product.collection?.name ?? '—'}</td>
+                  <td>{product.category?.name ?? '—'}</td>
+                  <td>
+                    {product.priceAmount} {product.priceCurrency}
+                  </td>
+                  <td>{product.viewCount ?? 0}</td>
+                  <td>{new Date(product.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    <span className="badge">{product.isActive ? 'Active' : 'Hidden'}</span>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

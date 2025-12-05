@@ -6,9 +6,9 @@ export class CreateProductDto {
   @MinLength(2)
   title!: string;
 
+  @IsOptional()
   @IsString()
-  @MinLength(2)
-  slug!: string;
+  slug?: string;
 
   @IsString()
   description!: string;
