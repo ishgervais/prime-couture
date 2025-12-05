@@ -10,6 +10,11 @@ import AnalyticsPage from './pages/AnalyticsPage'
 import CollectionsPage from './pages/CollectionsPage'
 import CategoriesPage from './pages/CategoriesPage'
 import UsersPage from './pages/UsersPage'
+import SalesTablePage from './pages/SalesTablePage'
+import NewSalePage from './pages/NewSalePage'
+import SaleDetailPage from './pages/SaleDetailPage'
+import ClientsAdminPage from './pages/ClientsAdminPage'
+import ClientDetailPage from './pages/ClientDetailPage'
 
 export default function App() {
   return (
@@ -37,6 +42,46 @@ export default function App() {
           element={
             <Layout>
               <ProductsPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/sales"
+          element={
+            <Layout>
+              <SalesTablePage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/sales/new"
+          element={
+            <Layout>
+              <NewSalePage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/sales/:id"
+          element={
+            <Layout>
+              <SaleDetailPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/clients"
+          element={
+            <Layout>
+              <ClientsAdminPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/clients/:id"
+          element={
+            <Layout>
+              <ClientDetailPage />
             </Layout>
           }
         />

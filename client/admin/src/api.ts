@@ -150,4 +150,50 @@ export const usersApi = {
   },
 }
 
+export const clientsApi = {
+  async list(search?: string) {
+    const { data } = await api.get('/admin/clients', { params: { search } })
+    return data
+  },
+  async get(id: string) {
+    const { data } = await api.get(`/admin/clients/${id}`)
+    return data
+  },
+  async create(payload: any) {
+    const { data } = await api.post('/admin/clients', payload)
+    return data
+  },
+}
+
+export const salesApi = {
+  async list(params: any = {}) {
+    const { data } = await api.get('/admin/sales', { params })
+    return data
+  },
+  async get(id: string) {
+    const { data } = await api.get(`/admin/sales/${id}`)
+    return data
+  },
+  async summary() {
+    const { data } = await api.get('/admin/sales/stats/summary')
+    return data
+  },
+  async monthlyStats(year?: string) {
+    const { data } = await api.get('/admin/sales/stats/monthly', { params: { year } })
+    return data
+  },
+  async create(payload: any) {
+    const { data } = await api.post('/admin/sales', payload)
+    return data
+  },
+  async update(id: string, payload: any) {
+    const { data } = await api.patch(`/admin/sales/${id}`, payload)
+    return data
+  },
+  async addPayment(id: string, payload: any) {
+    const { data } = await api.post(`/admin/sales/${id}/payments`, payload)
+    return data
+  },
+}
+
 export default api

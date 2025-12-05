@@ -10,6 +10,8 @@ import { OrdersModule } from './orders/orders.module'
 import { AnalyticsModule } from './analytics/analytics.module'
 import { FilesModule } from './files/files.module'
 import { AppController } from './app.controller'
+import { ClientsModule } from './clients/clients.module'
+import { SalesModule } from './sales/sales.module'
 
 @Module({
     imports: [
@@ -22,6 +24,8 @@ import { AppController } from './app.controller'
         OrdersModule,
         AnalyticsModule,
         FilesModule,
+        ClientsModule,
+        SalesModule,
     ],
     controllers: [AppController],
     providers: [
