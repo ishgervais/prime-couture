@@ -1,32 +1,36 @@
-name: Backend CI
+name: CI
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  backend:
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v2
-
-      - name: Setup Node
-        uses: actions/setup-node@v2
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install deps
+    defaults:
+      run:
         working-directory: server
-        run: npm install --no-fund --no-audit
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm i -g pnpm
+          pnpm i --frozen-lockfile --ignore-scripts
+
+      - name: Generate prisma
+        run: pnpm exec prisma generate
 
       - name: Lint
-        working-directory: server
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Build
-        working-directory: server
-        run: npm run build
+        run: pnpm run build
