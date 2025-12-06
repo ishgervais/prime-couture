@@ -16,6 +16,10 @@ export default function SalesTablePage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [importing, setImporting] = useState(false)
+  const { data: salesYears } = useQuery({
+    queryKey: ['sales-years-options'],
+    queryFn: () => salesApi.monthlyStats('all'),
+  })
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ['sales', yearFilter, monthFilter, paymentStatusFilter, paymentMethodFilter, search, page, pageSize],
     queryFn: () => {
@@ -178,16 +182,13 @@ export default function SalesTablePage() {
   }
 
   const years = useMemo(() => {
-    const set = new Set<string>()
-    if (items) {
-      items.forEach((sale: any) => {
-        const y = new Date(sale.saleDate).getFullYear()
-        set.add(String(y))
-      })
-    }
-    set.add(String(now.getFullYear()))
-    return ['all', ...Array.from(set).sort((a, b) => Number(b) - Number(a))]
-  }, [items, now])
+    const fromApi = salesYears?.availableYears ?? []
+    const current = String(now.getFullYear())
+    const allYears = Array.from(new Set<string>([...fromApi, current])).sort(
+      (a, b) => Number(b) - Number(a)
+    )
+    return ['all', ...allYears]
+  }, [salesYears, now])
 
   // Ensure current selection exists even before data loads
   useEffect(() => {

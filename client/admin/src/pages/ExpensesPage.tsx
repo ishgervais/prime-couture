@@ -14,6 +14,10 @@ export default function ExpensesPage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [importing, setImporting] = useState(false)
+  const { data: expenseYears } = useQuery({
+    queryKey: ['expense-years-options'],
+    queryFn: () => expensesApi.monthly('all'),
+  })
 
   const { data: categories } = useQuery({ queryKey: ['expense-categories'], queryFn: expensesApi.categories })
   const { data, isLoading, isFetching, error } = useQuery({
@@ -34,11 +38,13 @@ export default function ExpensesPage() {
   const total = data?.total ?? 0
   const aggregates = data?.aggregates ?? { totalAmount: 0 }
   const years = useMemo(() => {
-    const set = new Set<string>()
-    items.forEach((e: any) => set.add(String(new Date(e.expenseDate).getFullYear())))
-    set.add(String(now.getFullYear()))
-    return ['all', ...Array.from(set).sort((a, b) => Number(b) - Number(a))]
-  }, [items, now])
+    const fromApi = expenseYears?.availableYears ?? []
+    const current = String(now.getFullYear())
+    const allYears = Array.from(new Set<string>([...fromApi, current])).sort(
+      (a, b) => Number(b) - Number(a)
+    )
+    return ['all', ...allYears]
+  }, [expenseYears, now])
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 300)
