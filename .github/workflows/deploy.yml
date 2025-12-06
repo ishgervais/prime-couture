@@ -6,7 +6,7 @@ on:
 
 env:
   REMOTE_PATH: /${{ secrets.SSH_USER }}/prime-couture
-
+  
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -29,7 +29,7 @@ jobs:
           pnpm build
 
       - name: Sync repo to server
-        uses: burnett01/rsync-deployments@v6.0.0
+        uses: burnett01/rsync-deployments@v5.1.1
         with:
           switches: "-avz --delete --exclude='.git' --exclude='node_modules' --exclude='dist'"
           path: "./"
