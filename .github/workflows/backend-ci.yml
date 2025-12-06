@@ -9,10 +9,6 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -23,15 +19,20 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9 # or whatever you use locally
-          run_install: true  # runs `pnpm install` for you in working-directory
-
-      # If you prefer manual install instead of run_install:
-      # - run: pnpm install
-
-      - name: Run backend tests/build
+      - name: Enable pnpm via corepack
         run: |
-          pnpm test         # or pnpm lint / pnpm build
+          corepack enable
+          corepack prepare pnpm@8 --activate
+          pnpm --version
+
+      - name: Install deps
+        working-directory: server
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        working-directory: server
+        run: pnpm lint
+
+      - name: Build
+        working-directory: server
+        run: pnpm build
