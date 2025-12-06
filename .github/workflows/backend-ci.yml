@@ -2,15 +2,19 @@ name: Backend CI
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -19,17 +23,15 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
-      - name: Enable pnpm via corepack
-        run: corepack enable pnpm && pnpm --version
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9 # or whatever you use locally
+          run_install: true  # runs `pnpm install` for you in working-directory
 
-      - name: Install deps
-        working-directory: server
-        run: pnpm install --frozen-lockfile
+      # If you prefer manual install instead of run_install:
+      # - run: pnpm install
 
-      - name: Lint
-        working-directory: server
-        run: pnpm lint
-
-      - name: Build
-        working-directory: server
-        run: pnpm build
+      - name: Run backend tests/build
+        run: |
+          pnpm test         # or pnpm lint / pnpm build
