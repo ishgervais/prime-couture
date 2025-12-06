@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { salesApi } from '../api'
+import TablePager from '../components/TablePager'
 
 export default function SalesTablePage() {
   const qc = useQueryClient()
@@ -15,7 +16,7 @@ export default function SalesTablePage() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [importing, setImporting] = useState(false)
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ['sales', yearFilter, monthFilter, paymentStatusFilter, paymentMethodFilter, search, page, pageSize],
     queryFn: () => {
       const params: any = {}
@@ -45,6 +46,7 @@ export default function SalesTablePage() {
       params.pageSize = pageSize
       return salesApi.list(params)
     },
+    keepPreviousData: true,
   })
   const items = data?.items ?? []
   const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>({
@@ -199,6 +201,19 @@ export default function SalesTablePage() {
   const total = data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
+  const pager = (
+    <TablePager
+      page={page}
+      pageSize={pageSize}
+      total={total}
+      onPageChange={(p) => setPage(p)}
+      onPageSizeChange={(n) => {
+        setPageSize(n)
+        setPage(1)
+      }}
+    />
+  )
+
   // debounce search input
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 300)
@@ -209,6 +224,7 @@ export default function SalesTablePage() {
     setPage(1)
   }, [yearFilter, monthFilter, paymentStatusFilter, paymentMethodFilter, search])
 
+  const agg = data?.aggregates || {}
   const totals = useMemo(() => {
     return filteredSales.reduce(
       (acc: any, s: any) => {
@@ -222,7 +238,6 @@ export default function SalesTablePage() {
     )
   }, [filteredSales])
 
-  const agg = data?.aggregates || {}
   const cards = useMemo(
     () => [
       { label: 'Total Sales', value: formatNumber(agg.totalAmount ?? totals.total) },
@@ -359,42 +374,7 @@ export default function SalesTablePage() {
             />
           </label>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ color: '#0f172a' }}>Rows per page:</span>
-            <select className="input" style={{ width: '90px' }} value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
-              {[10, 50, 100].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button className="pill" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Prev
-            </button>
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {Array.from({ length: totalPages }).map((_, idx) => {
-                const p = idx + 1
-                const active = p === page
-                return (
-                  <button
-                    key={p}
-                    className="pill"
-                    style={{ background: active ? '#0f172a' : '#e2e8f0', color: active ? '#fff' : '#0f172a' }}
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </button>
-                )
-              })}
-            </div>
-            <button className="pill" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-              Next
-            </button>
-          </div>
-        </div>
+        {pager}
         <div
           style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem', position: 'relative' }}
           tabIndex={0}
@@ -479,11 +459,11 @@ export default function SalesTablePage() {
             </tr>
           </thead>
           <tbody>
-            {(isLoading ? Array.from({ length: 6 }) : filteredSales).map((sale: any, idx: number) => {
-              if (isLoading) {
+            {((isLoading && (!data || !data.items?.length)) ? Array.from({ length: 10 }) : filteredSales).map((sale: any, idx: number) => {
+              if (isLoading && (!data || !data.items?.length)) {
                 return (
                   <tr key={`skeleton-${idx}`}>
-                    <td className="skeleton" style={{ height: '18px' }} colSpan={visibleCols.notes ? 15 : 14}></td>
+                    <td className="skeleton" style={{ height: '32px' }} colSpan={visibleCols.notes ? 15 : 14}></td>
                   </tr>
                 )
               }
@@ -539,45 +519,17 @@ export default function SalesTablePage() {
                 </tr>
               )
             })}
+            {filteredSales.length < pageSize &&
+              Array.from({ length: Math.max(0, pageSize - filteredSales.length) }).map((_, idx) => (
+                <tr key={`pad-${idx}`} style={{ opacity: 0.25, height: '42px' }}>
+                  <td colSpan={visibleCols.notes ? 15 : 14}></td>
+                </tr>
+              ))}
           </tbody>
         </table>
+        {isFetching && !isLoading && <div className="table-overlay">Updating…</div>}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ color: '#0f172a' }}>Rows per page:</span>
-            <select className="input" style={{ width: '90px' }} value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}>
-              {[10, 50, 100].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button className="pill" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Prev
-            </button>
-            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-              {Array.from({ length: totalPages }).map((_, idx) => {
-                const p = idx + 1
-                const active = p === page
-                return (
-                  <button
-                    key={p}
-                    className="pill"
-                    style={{ background: active ? '#0f172a' : '#e2e8f0', color: active ? '#fff' : '#0f172a' }}
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </button>
-                )
-              })}
-            </div>
-            <button className="pill" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-              Next
-            </button>
-          </div>
-        </div>
+        {pager}
       </div>
     </div>
   )

@@ -1,8 +1,40 @@
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ordersApi } from '../api'
+import TablePager from '../components/TablePager'
 
 export default function OrdersPage() {
   const { data, isLoading, error } = useQuery({ queryKey: ['orders'], queryFn: ordersApi.list })
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return (data ?? []).filter((o: any) => {
+      if (!q) return true
+      return (
+        o.product?.title?.toLowerCase().includes(q) ||
+        o.customerName?.toLowerCase().includes(q) ||
+        o.customerPhone?.toLowerCase().includes(q)
+      )
+    })
+  }, [data, search])
+
+  const total = filtered.length
+  const paged = filtered.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
+  const pager = (
+    <TablePager
+      page={page}
+      pageSize={pageSize}
+      total={total}
+      onPageChange={setPage}
+      onPageSizeChange={(n) => {
+        setPageSize(n)
+        setPage(1)
+      }}
+    />
+  )
 
   return (
     <div>
@@ -17,6 +49,19 @@ export default function OrdersPage() {
       {error && <p style={{ color: '#dc2626' }}>Failed to load orders</p>}
 
       <div className="card">
+        <div className="pager-row" style={{ justifyContent: 'flex-start' }}>
+          <input
+            className="input"
+            placeholder="Search by product or customer"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            style={{ maxWidth: 260 }}
+          />
+        </div>
+        {pager}
         <table className="table">
           <thead>
             <tr>
@@ -28,7 +73,7 @@ export default function OrdersPage() {
             </tr>
           </thead>
           <tbody>
-            {(data ?? []).map((order: any) => (
+            {paged.map((order: any) => (
               <tr key={order.id}>
                 <td>{order.product?.title ?? order.productId}</td>
                 <td>
@@ -44,6 +89,7 @@ export default function OrdersPage() {
             ))}
           </tbody>
         </table>
+        {pager}
       </div>
     </div>
   )

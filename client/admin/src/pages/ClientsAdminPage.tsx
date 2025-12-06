@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { clientsApi } from '../api'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import TablePager from '../components/TablePager'
 
 export default function ClientsAdminPage() {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<'salesCount' | 'totalSalesAmount'>('salesCount')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['clients', search], queryFn: () => clientsApi.list(search) })
   const formatNumber = (value: any) => {
     const num = Number(value ?? 0)
@@ -13,11 +16,27 @@ export default function ClientsAdminPage() {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(num)
   }
 
-  const sorted = (data ?? []).slice().sort((a: any, b: any) => {
-    const av = Number(a[sortKey] ?? 0)
-    const bv = Number(b[sortKey] ?? 0)
-    return bv - av
-  })
+  const sorted = useMemo(() => {
+    return (data ?? []).slice().sort((a: any, b: any) => {
+      const av = Number(a[sortKey] ?? 0)
+      const bv = Number(b[sortKey] ?? 0)
+      return bv - av
+    })
+  }, [data, sortKey])
+  const total = sorted.length
+  const paged = sorted.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
+  const pager = (
+    <TablePager
+      page={page}
+      pageSize={pageSize}
+      total={total}
+      onPageChange={setPage}
+      onPageSizeChange={(n) => {
+        setPageSize(n)
+        setPage(1)
+      }}
+    />
+  )
 
   return (
     <div>
@@ -54,6 +73,19 @@ export default function ClientsAdminPage() {
       {error && <p style={{ color: '#dc2626' }}>Failed to load clients</p>}
 
       <div className="card">
+        <div className="pager-row" style={{ justifyContent: 'flex-start' }}>
+          <input
+            className="input"
+            placeholder="Search by name/phone/email"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            style={{ maxWidth: 280 }}
+          />
+        </div>
+        {pager}
         <table className="table">
           <thead>
             <tr>
@@ -67,7 +99,7 @@ export default function ClientsAdminPage() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((c: any) => (
+            {paged.map((c: any) => (
               <tr key={c.id}>
                 <td><Link to={`/clients/${c.id}`}>{c.fullName}</Link></td>
                 <td>{c.phone}</td>
@@ -84,6 +116,7 @@ export default function ClientsAdminPage() {
             ))}
           </tbody>
         </table>
+        {pager}
       </div>
     </div>
   )

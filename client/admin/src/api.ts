@@ -174,8 +174,11 @@ export const salesApi = {
     const { data } = await api.get(`/admin/sales/${id}`)
     return data
   },
-  async summary() {
-    const { data } = await api.get('/admin/sales/stats/summary')
+  async summary(year?: string, month?: string) {
+    const params: any = {}
+    if (year) params.year = year
+    if (month && month !== 'all') params.month = month
+    const { data } = await api.get('/admin/sales/stats/summary', { params })
     return data
   },
   async monthlyStats(year?: string) {

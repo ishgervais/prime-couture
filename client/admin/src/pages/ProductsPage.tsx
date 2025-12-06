@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { productsApi, collectionsApi, categoriesApi, uploadToCloudinary } from '../api'
 import { useAuth } from '../context/AuthContext'
+import TablePager from '../components/TablePager'
 
 export default function ProductsPage() {
   const queryClient = useQueryClient()
@@ -28,6 +29,9 @@ export default function ProductsPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [errMsg, setErrMsg] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
 
   const submitProduct = async (e: FormEvent) => {
@@ -35,10 +39,6 @@ export default function ProductsPage() {
     setMessage(null)
     setErrMsg(null)
     const filesToUpload = images.filter((img) => img.file)
-    if (!filesToUpload.length) {
-      setErrMsg('Add at least one image before creating the product.')
-      return
-    }
     try {
       const slug = form.slug?.trim() || `${form.title.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID().slice(0, 6)}`
       const payload: any = {
@@ -89,6 +89,24 @@ export default function ProductsPage() {
 
   const collectionOptions = useMemo(() => collections ?? [], [collections])
   const categoryOptions = useMemo(() => categories ?? [], [categories])
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return (data ?? []).filter((p: any) => (q ? p.title.toLowerCase().includes(q) : true))
+  }, [data, search])
+  const total = filteredProducts.length
+  const paged = filteredProducts.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize)
+  const pager = (
+    <TablePager
+      page={page}
+      pageSize={pageSize}
+      total={total}
+      onPageChange={setPage}
+      onPageSizeChange={(n) => {
+        setPageSize(n)
+        setPage(1)
+      }}
+    />
+  )
 
   return (
     <div>
@@ -231,6 +249,19 @@ export default function ProductsPage() {
       )}
 
       <div className="card">
+        <div className="pager-row" style={{ justifyContent: 'flex-start', marginBottom: '0.5rem' }}>
+          <input
+            className="input"
+            placeholder="Search products"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            style={{ maxWidth: 260 }}
+          />
+        </div>
+        {pager}
         <table className="table">
           <thead>
             <tr>
@@ -245,7 +276,7 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody>
-            {(data ?? []).map((product: any) => {
+            {paged.map((product: any) => {
               const firstImg = (product.images || []).find((img: any) => img.isVisible !== false)
               return (
                 <tr key={product.id} style={{ cursor: 'pointer' }}>
@@ -278,6 +309,7 @@ export default function ProductsPage() {
             })}
           </tbody>
         </table>
+        {pager}
       </div>
     </div>
   )
