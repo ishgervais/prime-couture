@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - ./env/postgres.env
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  server:
+    build:
+      context: ../server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./env/server.env
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/nginx/Dockerfile
+      args:
+        SHOP_API_BASE_URL: ${SHOP_API_BASE_URL}
+        SHOP_BRAND_NAME: ${SHOP_BRAND_NAME}
+        ADMIN_API_BASE_URL: ${ADMIN_API_BASE_URL}
+        ADMIN_CLOUDINARY_CLOUD_NAME: ${ADMIN_CLOUDINARY_CLOUD_NAME}
+        ADMIN_CLOUDINARY_UPLOAD_PRESET: ${ADMIN_CLOUDINARY_UPLOAD_PRESET}
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+      - "8081:8081"
+
+volumes:
+  db-data:

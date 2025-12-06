@@ -1,0 +1,54 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REMOTE_PATH: /${{ secrets.SSH_USER }}/prime-couture
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Basic backend build check
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install and build API
+        run: |
+          cd server
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm build
+
+      - name: Sync repo to server
+        uses: burnett01/rsync-deployments@v6.0.0
+        with:
+          switches: "-avz --delete --exclude='.git' --exclude='node_modules' --exclude='dist'"
+          path: "./"
+          remote_path: ${{ env.REMOTE_PATH }}/
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_key: ${{ secrets.SSH_KEY }}
+          remote_port: ${{ secrets.SSH_PORT }}
+
+      - name: Build and restart services
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            REMOTE_PATH="${{ env.REMOTE_PATH }}"
+            cd "$REMOTE_PATH/deploy"
+            docker compose pull
+            docker compose build --pull
+            docker compose up -d --remove-orphans

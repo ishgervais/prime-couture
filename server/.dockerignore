@@ -1,0 +1,13 @@
+node_modules
+dist
+npm-debug.log
+pnpm-lock.yaml
+*.log
+Dockerfile
+.git
+tmp
+.turbo
+.next
+.cache
+.env
+.env.*

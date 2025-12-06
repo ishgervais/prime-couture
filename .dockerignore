@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+**/node_modules
+dist
+**/dist
+.turbo
+.next
+.cache
+tmp
+*.log
+.env
+.env.*
