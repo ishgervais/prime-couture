@@ -1,24 +1,32 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID } from 'class-validator'
+import {
+    IsDateString,
+    IsEnum,
+    IsNotEmpty,
+    IsNumber,
+    IsOptional,
+    IsString,
+    IsUUID,
+} from 'class-validator'
 import { Currency } from '@prisma/client'
 
 export class CreateExpenseDto {
-  @IsDateString()
-  expenseDate!: string
+    @IsDateString()
+    expenseDate!: string
 
-  @IsString()
-  @IsNotEmpty()
-  title!: string
+    @IsString()
+    @IsNotEmpty()
+    title!: string
 
-  @IsNumber()
-  amount!: number
+    @IsNumber()
+    amount!: number
 
-  @IsEnum(Currency)
-  currency: Currency = Currency.RWF
+    @IsEnum(Currency)
+    currency: Currency = Currency.RWF
 
-  @IsUUID()
-  categoryId!: string
+    @IsUUID()
+    categoryId!: string
 
-  @IsOptional()
-  @IsString()
-  notes?: string
+    @IsOptional()
+    @IsString()
+    notes?: string
 }

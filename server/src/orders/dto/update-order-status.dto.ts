@@ -1,11 +1,11 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { OrderStatus } from '@prisma/client';
+import { IsEnum, IsOptional, IsString } from 'class-validator'
+import { OrderStatus } from '@prisma/client'
 
 export class UpdateOrderStatusDto {
-  @IsEnum(OrderStatus)
-  status!: OrderStatus;
+    @IsEnum(OrderStatus)
+    status!: OrderStatus
 
-  @IsOptional()
-  @IsString()
-  internalNote?: string;
+    @IsOptional()
+    @IsString()
+    internalNote?: string
 }
