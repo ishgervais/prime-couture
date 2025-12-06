@@ -24,7 +24,7 @@ jobs:
       - name: Install and build API
         run: |
           cd server
-            pnpm i --no-frozen-lockfile --ignore-scripts
+          pnpm install --no-frozen-lockfile --ignore-scripts
           pnpm lint --fix
           pnpm exec prisma generate
           pnpm build

@@ -6,9 +6,9 @@ RUN corepack enable
 
 FROM base AS build
 WORKDIR /app
-COPY package.json pnpm-lock.yaml nest-cli.json tsconfig*.json ./
+COPY package.json nest-cli.json tsconfig*.json ./
 COPY prisma ./prisma
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 COPY src ./src
 RUN pnpm prisma:generate
 RUN pnpm build
