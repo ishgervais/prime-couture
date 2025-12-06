@@ -17,22 +17,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-
-      - name: Enable pnpm via corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@8 --activate
-          pnpm --version
+          cache: 'npm'
 
       - name: Install deps
         working-directory: server
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: Lint
         working-directory: server
-        run: pnpm lint
+        run: npm run lint
 
       - name: Build
         working-directory: server
-        run: pnpm build
+        run: npm run build
