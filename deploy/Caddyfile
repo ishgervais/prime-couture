@@ -1,20 +1,8 @@
 {
-	# Set your real email for Let's Encrypt notices
-	email you@example.com
+	email ishimwegervais11@gmail.com
 }
 
-prime-couture.com, www.prime-couture.com {
-	@api path /api*      # pass through to backend via web container
-	handle @api {
-		reverse_proxy web:80
-	}
-
-	handle {
-		reverse_proxy web:80
-	}
-}
-
- admin.prime-couture.com {
+admin.prime-couture.com {
 	@api path /api*
 	handle @api {
 		reverse_proxy web:4173
@@ -22,5 +10,11 @@ prime-couture.com, www.prime-couture.com {
 
 	handle {
 		reverse_proxy web:4173
+	}
+}
+
+api.prime-couture.com {
+	handle {
+		reverse_proxy server:3000
 	}
 }
