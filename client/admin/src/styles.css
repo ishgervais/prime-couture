@@ -15,6 +15,11 @@ body {
   margin: 0;
 }
 
+a,
+button {
+  font: inherit;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -291,4 +296,66 @@ a {
   border-radius: 999px;
   padding: 0.25rem 0.75rem;
   font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 78px;
+    padding: 0.75rem;
+  }
+
+  .sidebar.collapsed {
+    width: 78px;
+  }
+
+  .sidebar .nav-label,
+  .sidebar .user-meta,
+  .sidebar h1 {
+    display: none;
+  }
+
+  .user-block {
+    justify-content: center;
+  }
+
+  .content {
+    margin-left: 78px;
+    padding: 1rem;
+  }
+
+  .header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    font-size: 13px;
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pager-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pager,
+  .pager-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .layout {
+    min-height: 100vh;
+  }
 }

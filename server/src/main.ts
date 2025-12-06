@@ -4,6 +4,23 @@ import { ValidationPipe } from '@nestjs/common'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import type { Request, Response, NextFunction } from 'express'
+
+function swaggerBasicAuth(req: Request, res: Response, next: NextFunction) {
+    const user = process.env.SWAGGER_USER
+    const pass = process.env.SWAGGER_PASSWORD
+    if (!user || !pass) return next()
+
+    const header = req.headers.authorization || ''
+    const token = header.startsWith('Basic ') ? header.slice(6) : ''
+    const decoded = token ? Buffer.from(token, 'base64').toString() : ''
+    const [authUser, authPass] = decoded.split(':')
+
+    if (authUser === user && authPass === pass) return next()
+
+    res.set('WWW-Authenticate', 'Basic realm="Swagger Docs"')
+    return res.status(401).send('Authentication required')
+}
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule, { cors: true })
@@ -26,6 +43,8 @@ async function bootstrap() {
             transform: true,
         })
     )
+
+    app.use(['/docs', '/docs-json'], swaggerBasicAuth)
 
     const config = new DocumentBuilder()
         .setTitle('Prime Couture API')
