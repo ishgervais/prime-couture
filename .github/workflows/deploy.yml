@@ -26,6 +26,7 @@ jobs:
           cd server
             pnpm i --no-frozen-lockfile --ignore-scripts
           pnpm lint --fix
+          pnpm exec prisma generate
           pnpm build
 
       - name: Add SSH key
