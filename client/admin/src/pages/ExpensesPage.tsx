@@ -49,7 +49,7 @@ export default function ExpensesPage() {
     setPage(1)
   }, [year, month, categoryId, search])
 
-  const maxAmount = useMemo(() => Math.max(...items.map((e: any) => Number(e.amount ?? 0)), 0), [items])
+  const maxAmount = useMemo(() => Math.max(0, ...items.map((e: any) => Number(e.amount ?? 0))), [items])
   const maxRowId = useMemo(() => {
     let max = -Infinity
     let id: string | null = null
@@ -110,10 +110,12 @@ export default function ExpensesPage() {
     />
   )
 
-  const heat = (amount: number) => {
-    if (!maxAmount) return {}
-    const ratio = Math.min(1, amount / maxAmount)
-    return { background: `rgba(248,113,113,${0.12 + ratio * 0.35})`, color: '#7f1d1d' }
+  const heatAmount = (amount: number) => {
+    if (!maxAmount || maxAmount === 0) return {}
+    const ratio = Math.min(Math.max(amount / maxAmount, 0), 1)
+    // Lighter red at low amounts, denser as it approaches the max; broaden alpha range for more contrast
+    const alpha = 0.05 + ratio * 0.45
+    return { background: `rgba(248,113,113, ${alpha})`, color: ratio > 0.65 ? '#7f1d1d' : '#991b1b' }
   }
 
   const exportCsv = () => {
@@ -393,7 +395,7 @@ export default function ExpensesPage() {
                   <td>{new Date(e.expenseDate).toLocaleDateString()}</td>
                   <td>{e.title}</td>
                   <td>{e.category?.name ?? '—'}</td>
-                  <td style={heat(amountNum)}>
+                  <td style={heatAmount(amountNum)}>
                     {formatNumber(amountNum)} {e.currency}
                   </td>
                   <td>{e.notes ?? ''}</td>
