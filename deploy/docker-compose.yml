@@ -34,9 +34,21 @@ services:
     restart: unless-stopped
     depends_on:
       - server
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
     ports:
       - "80:80"
-      - "4173:4173"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
 
 volumes:
   db-data:
+  caddy_data:
+  caddy_config:
