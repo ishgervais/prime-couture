@@ -386,43 +386,18 @@ export class SalesService {
         })
 
         const targetYear =
-            year && year !== 'all'
-                ? Number(year)
-                : year === 'all'
-                  ? null
-                  : null
-        const targetMonth =
-            month && month !== 'all'
-                ? Number(month)
-                : null
+            year && year !== 'all' ? Number(year) : year === 'all' ? null : null
+        const targetMonth = month && month !== 'all' ? Number(month) : null
 
         const filtered = sales.filter((s) => {
             const d = new Date(s.saleDate)
             if (Number.isNaN(d.getTime())) return false
             const yOk =
-                targetYear === null
-                    ? true
-                    : d.getFullYear() === targetYear
+                targetYear === null ? true : d.getFullYear() === targetYear
             const mOk =
-                targetMonth === null
-                    ? true
-                    : d.getMonth() + 1 === targetMonth
+                targetMonth === null ? true : d.getMonth() + 1 === targetMonth
             return yOk && mOk
         })
-
-        const totalSalesAmount = sales.reduce(
-            (s, v) => s + Number(v.totalAmount),
-            0
-        )
-        const totalPaidAmount = sales.reduce(
-            (s, v) => s + Number(v.totalPaid),
-            0
-        )
-        const totalOutstandingAmount = sales.reduce(
-            (s, v) => s + Number(v.remainingAmount),
-            0
-        )
-        const totalProfit = sales.reduce((s, v) => s + Number(v.profit), 0)
 
         // Timeseries within same date range (or last 30 days by default)
         const timeseriesMap = new Map<string, number>()
@@ -457,10 +432,7 @@ export class SalesService {
                 (s, v) => s + Number(v.remainingAmount),
                 0
             ),
-            totalProfit: filtered.reduce(
-                (s, v) => s + Number(v.profit),
-                0
-            ),
+            totalProfit: filtered.reduce((s, v) => s + Number(v.profit), 0),
             saleCount: filtered.length,
             timeseries,
         }
