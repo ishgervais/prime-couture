@@ -213,8 +213,15 @@ export class SalesService {
         const where: Prisma.SaleWhereInput = {}
         if (params.from || params.to) {
             where.saleDate = {}
-            if (params.from) where.saleDate.gte = new Date(params.from)
-            if (params.to) where.saleDate.lte = new Date(params.to)
+            if (params.from) {
+                const from = new Date(`${params.from}T00:00:00.000Z`)
+                where.saleDate.gte = from
+            }
+            if (params.to) {
+                const to = new Date(`${params.to}T00:00:00.000Z`)
+                to.setDate(to.getDate() + 1) // include full "to" day
+                where.saleDate.lt = to
+            }
         }
         if (params.paymentStatus) where.paymentStatus = params.paymentStatus
         if (params.paymentMethod) where.paymentMethod = params.paymentMethod
@@ -373,8 +380,36 @@ export class SalesService {
         })
     }
 
-    async statsSummary() {
-        const sales = await this.prisma.sale.findMany()
+    async statsSummary(year?: string, month?: string) {
+        const sales = await this.prisma.sale.findMany({
+            orderBy: { saleDate: 'asc' },
+        })
+
+        const targetYear =
+            year && year !== 'all'
+                ? Number(year)
+                : year === 'all'
+                  ? null
+                  : null
+        const targetMonth =
+            month && month !== 'all'
+                ? Number(month)
+                : null
+
+        const filtered = sales.filter((s) => {
+            const d = new Date(s.saleDate)
+            if (Number.isNaN(d.getTime())) return false
+            const yOk =
+                targetYear === null
+                    ? true
+                    : d.getFullYear() === targetYear
+            const mOk =
+                targetMonth === null
+                    ? true
+                    : d.getMonth() + 1 === targetMonth
+            return yOk && mOk
+        })
+
         const totalSalesAmount = sales.reduce(
             (s, v) => s + Number(v.totalAmount),
             0
@@ -389,24 +424,44 @@ export class SalesService {
         )
         const totalProfit = sales.reduce((s, v) => s + Number(v.profit), 0)
 
-        // Simple timeseries: last 30 days
-        const from = new Date()
-        from.setDate(from.getDate() - 30)
-        const timeseriesRaw = await this.prisma.sale.groupBy({
-            by: ['saleDate'],
-            where: { saleDate: { gte: from } },
-            _sum: { totalAmount: true },
+        // Timeseries within same date range (or last 30 days by default)
+        const timeseriesMap = new Map<string, number>()
+        const timeseriesSource =
+            filtered.length > 0
+                ? filtered
+                : sales.filter((s) => {
+                      const d = new Date(s.saleDate)
+                      const cutoff = new Date()
+                      cutoff.setDate(cutoff.getDate() - 30)
+                      return d >= cutoff
+                  })
+        timeseriesSource.forEach((s) => {
+            const key = new Date(s.saleDate).toISOString().slice(0, 10)
+            const curr = timeseriesMap.get(key) ?? 0
+            timeseriesMap.set(key, curr + Number(s.totalAmount ?? 0))
         })
-        const timeseries = timeseriesRaw.map((r) => ({
-            date: r.saleDate.toISOString().slice(0, 10),
-            total: Number(r._sum.totalAmount ?? 0),
-        }))
+        const timeseries = Array.from(timeseriesMap.entries())
+            .sort(([a], [b]) => (a < b ? -1 : 1))
+            .map(([date, total]) => ({ date, total }))
 
         return {
-            totalSalesAmount,
-            totalPaidAmount,
-            totalOutstandingAmount,
-            totalProfit,
+            totalSalesAmount: filtered.reduce(
+                (s, v) => s + Number(v.totalAmount),
+                0
+            ),
+            totalPaidAmount: filtered.reduce(
+                (s, v) => s + Number(v.totalPaid),
+                0
+            ),
+            totalOutstandingAmount: filtered.reduce(
+                (s, v) => s + Number(v.remainingAmount),
+                0
+            ),
+            totalProfit: filtered.reduce(
+                (s, v) => s + Number(v.profit),
+                0
+            ),
+            saleCount: filtered.length,
             timeseries,
         }
     }

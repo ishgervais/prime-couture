@@ -94,16 +94,21 @@ export default function DashboardPage() {
     [paddedSalesMonths],
   )
 
-  const chip = (color: string) => (
+  const chip = (color: string, Icon: React.ComponentType<{ size?: number; color?: string }>) => (
     <span
       style={{
-        display: 'inline-block',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         width: 28,
         height: 28,
         borderRadius: '50%',
         background: color,
+        color: '#0f172a',
       }}
-    />
+    >
+      <Icon size={14} color="#0f172a" />
+    </span>
   )
   const iconBubble = (accent: string, Icon: React.ComponentType<{ size?: number; color?: string }>) => (
     <span
@@ -158,78 +163,122 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="card" style={{ marginTop: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div>
-            <h3 style={{ margin: 0 }}>Sales by month</h3>
-            <p style={{ margin: 0, color: '#64748b' }}>Bar chart of monthly totals</p>
+      <div className="card-grid" style={{ marginTop: '1rem' }}>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Sales by month</h3>
+              <p style={{ margin: 0, color: '#64748b' }}>Bar chart of monthly totals</p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <label style={{ fontWeight: 600, color: '#0f172a' }}>Year</label>
+              <select className="input" style={{ width: '140px' }} value={year} onChange={(e) => setYear(e.target.value)}>
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>
+                    {y === 'current' ? `Current (${new Date().getFullYear()})` : y === 'all' ? 'All years' : y}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{ fontWeight: 600, color: '#0f172a' }}>Year</label>
-            <select className="input" style={{ width: '140px' }} value={year} onChange={(e) => setYear(e.target.value)}>
-              {availableYears.map((y) => (
-                <option key={y} value={y}>
-                  {y === 'current' ? `Current (${new Date().getFullYear()})` : y === 'all' ? 'All years' : y}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        {loadingMonthly && <p>Loading chart…</p>}
-        {!loadingMonthly && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: '0.5rem', alignItems: 'end' }}>
-            {paddedSalesMonths.map((m: any) => {
-              const height = maxValue ? Math.max((Number(m.total ?? 0) / maxValue) * 160, 4) : 4
-              return (
-                <div key={m.month} style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+          {loadingMonthly && <p>Loading chart…</p>}
+          {!loadingMonthly && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: '0.5rem', alignItems: 'end' }}>
+              {paddedSalesMonths.map((m: any) => {
+                const height = maxValue ? Math.max((Number(m.total ?? 0) / maxValue) * 160, 4) : 4
+                return (
+                  <div key={m.month} style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                    <div
+                      style={{
+                        height: `${height}px`,
+                        background: 'rgba(37, 99, 235, 0.5)',
+                        borderRadius: '6px',
+                        transition: 'height 0.2s ease',
+                      }}
+                      title={`${m.total} total`}
+                    ></div>
                   <div
                     style={{
-                      height: `${height}px`,
-                      background: 'rgba(37, 99, 235, 0.5)',
-                      borderRadius: '6px',
-                      transition: 'height 0.2s ease',
+                      marginTop: '0.25rem',
+                      color: '#64748b',
+                      fontSize: '0.8rem',
+                      letterSpacing: '0.02em',
                     }}
-                    title={`${m.total} total`}
-                  ></div>
-                  <div style={{ marginTop: '0.35rem', color: '#64748b' }}>{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][m.month - 1]}</div>
-                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{Number(m.total ?? 0).toLocaleString()}</div>
+                  >
+                    {['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][m.month - 1]}
+                  </div>
+                  <div
+                    style={{
+                      color: '#475569',
+                      fontWeight: 400,
+                      fontSize: '0.75rem',
+                      transform: 'rotate(-25deg)',
+                      transformOrigin: 'left top',
+                      marginTop: '0.85rem',
+                      display: 'inline-block',
+                    }}
+                  >
+                    {Number(m.total ?? 0).toLocaleString()}
+                  </div>
                 </div>
               )
             })}
           </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      <div className="card" style={{ marginTop: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div>
-            <h3 style={{ margin: 0 }}>Expenses by month</h3>
-            <p style={{ margin: 0, color: '#64748b' }}>Track spending trends</p>
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div>
+              <h3 style={{ margin: 0 }}>Expenses by month</h3>
+              <p style={{ margin: 0, color: '#64748b' }}>Track spending trends</p>
+            </div>
           </div>
-        </div>
-        {loadingExpensesMonthly && <p>Loading chart…</p>}
-        {!loadingExpensesMonthly && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: '0.5rem', alignItems: 'end' }}>
-            {paddedExpenseMonths.map((m: any) => {
-              const height = maxExpenseValue ? Math.max((Number(m.total ?? 0) / maxExpenseValue) * 160, 4) : 4
-              return (
-                <div key={m.month} style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+          {loadingExpensesMonthly && <p>Loading chart…</p>}
+          {!loadingExpensesMonthly && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: '0.5rem', alignItems: 'end' }}>
+              {paddedExpenseMonths.map((m: any) => {
+                const height = maxExpenseValue ? Math.max((Number(m.total ?? 0) / maxExpenseValue) * 160, 4) : 4
+                return (
+                  <div key={m.month} style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                    <div
+                      style={{
+                        height: `${height}px`,
+                        background: 'rgba(249, 115, 22, 0.45)',
+                        borderRadius: '6px',
+                        transition: 'height 0.2s ease',
+                      }}
+                      title={`${m.total} total`}
+                    ></div>
                   <div
                     style={{
-                      height: `${height}px`,
-                      background: 'rgba(249, 115, 22, 0.45)',
-                      borderRadius: '6px',
-                      transition: 'height 0.2s ease',
+                      marginTop: '0.25rem',
+                      color: '#64748b',
+                      fontSize: '0.8rem',
+                      letterSpacing: '0.02em',
                     }}
-                    title={`${m.total} total`}
-                  ></div>
-                  <div style={{ marginTop: '0.35rem', color: '#64748b' }}>{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][m.month - 1]}</div>
-                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{Number(m.total ?? 0).toLocaleString()}</div>
+                  >
+                    {['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][m.month - 1]}
+                  </div>
+                  <div
+                    style={{
+                      color: '#475569',
+                      fontWeight: 400,
+                      fontSize: '0.75rem',
+                      transform: 'rotate(-25deg)',
+                      transformOrigin: 'left top',
+                      marginTop: '0.85rem',
+                      display: 'inline-block',
+                    }}
+                  >
+                    {Number(m.total ?? 0).toLocaleString()}
+                  </div>
                 </div>
               )
             })}
           </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div className="card" style={{ marginTop: '1rem' }}>
@@ -237,7 +286,7 @@ export default function DashboardPage() {
         <div className="card-grid">
           <div className="card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b' }}>
-              {chip('#e0f2fe')}
+              {chip('#e0f2fe', DollarSign)}
               <span>Avg sale (RWF)</span>
             </div>
             <div style={{ fontSize: '1.3rem', fontWeight: 700, marginTop: '0.35rem' }}>
@@ -248,7 +297,7 @@ export default function DashboardPage() {
           </div>
           <div className="card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b' }}>
-              {chip('#dcfce7')}
+              {chip('#dcfce7', TrendingUp)}
               <span>Top months</span>
             </div>
             {topMonths.map((m) => (
@@ -267,7 +316,7 @@ export default function DashboardPage() {
           </div>
           <div className="card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b' }}>
-              {chip('#ffedd5')}
+              {chip('#ffedd5', CheckCircle2)}
               <span>Outstanding vs Paid</span>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>

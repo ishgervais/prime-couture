@@ -22,22 +22,21 @@ export default function SalesTablePage() {
       const params: any = {}
       const yearNum = yearFilter !== 'all' ? Number(yearFilter) : null
       const monthNum = monthFilter !== 'all' ? Number(monthFilter) : null
+      const pad = (n: number) => String(n).padStart(2, '0')
       if (yearNum) {
         if (monthNum) {
-          const from = new Date(yearNum, monthNum - 1, 1)
-          const to = new Date(yearNum, monthNum, 0)
-          params.from = from.toISOString().slice(0, 10)
-          params.to = to.toISOString().slice(0, 10)
+          const lastDay = new Date(yearNum, monthNum, 0).getDate()
+          params.from = `${yearNum}-${pad(monthNum)}-01`
+          params.to = `${yearNum}-${pad(monthNum)}-${pad(lastDay)}`
         } else {
           params.from = `${yearNum}-01-01`
           params.to = `${yearNum}-12-31`
         }
       } else if (monthNum) {
         const y = now.getFullYear()
-        const from = new Date(y, monthNum - 1, 1)
-        const to = new Date(y, monthNum, 0)
-        params.from = from.toISOString().slice(0, 10)
-        params.to = to.toISOString().slice(0, 10)
+        const lastDay = new Date(y, monthNum, 0).getDate()
+        params.from = `${y}-${pad(monthNum)}-01`
+        params.to = `${y}-${pad(monthNum)}-${pad(lastDay)}`
       }
       if (paymentStatusFilter !== 'all') params.paymentStatus = paymentStatusFilter
       if (paymentMethodFilter !== 'all') params.paymentMethod = paymentMethodFilter

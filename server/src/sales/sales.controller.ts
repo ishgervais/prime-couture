@@ -56,8 +56,8 @@ export class SalesController {
     }
 
     @Get('stats/summary')
-    summary() {
-        return this.service.statsSummary()
+    summary(@Query('year') year?: string, @Query('month') month?: string) {
+        return this.service.statsSummary(year, month)
     }
 
     @Get('stats/monthly')
