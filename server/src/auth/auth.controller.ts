@@ -30,6 +30,13 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('me')
+  mePost(@Request() req: any) {
+    return this.authService.me(req.user.userId);
+  }
+
+  @ApiBearerAuth()
   @ApiBody({
     type: CreateUserDto,
     examples: {
