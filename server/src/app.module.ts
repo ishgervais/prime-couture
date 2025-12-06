@@ -12,6 +12,7 @@ import { FilesModule } from './files/files.module'
 import { AppController } from './app.controller'
 import { ClientsModule } from './clients/clients.module'
 import { SalesModule } from './sales/sales.module'
+import { ExpensesModule } from './expenses/expenses.module'
 
 @Module({
     imports: [
@@ -26,6 +27,7 @@ import { SalesModule } from './sales/sales.module'
         FilesModule,
         ClientsModule,
         SalesModule,
+        ExpensesModule,
     ],
     controllers: [AppController],
     providers: [

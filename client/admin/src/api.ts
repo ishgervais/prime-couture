@@ -203,4 +203,35 @@ export const salesApi = {
   },
 }
 
+export const expensesApi = {
+  async list(params: any = {}) {
+    const { data } = await api.get('/admin/expenses', { params })
+    return data
+  },
+  async summary(year?: string) {
+    const { data } = await api.get('/admin/expenses/stats/summary', { params: { year } })
+    return data
+  },
+  async monthly(year?: string) {
+    const { data } = await api.get('/admin/expenses/stats/monthly', { params: { year } })
+    return data
+  },
+  async importRows(rows: any[]) {
+    const { data } = await api.post('/admin/expenses/import', { rows })
+    return data
+  },
+  async categories() {
+    const { data } = await api.get('/admin/expense-categories')
+    return data
+  },
+  async create(payload: any) {
+    const { data } = await api.post('/admin/expenses', payload)
+    return data
+  },
+  async createCategory(name: string) {
+    const { data } = await api.post('/admin/expense-categories', { name })
+    return data
+  },
+}
+
 export default api

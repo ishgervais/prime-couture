@@ -193,3 +193,25 @@ model File {
   updatedAt DateTime       @updatedAt
   productImages ProductImage[]
 }
+
+model ExpenseCategory {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expenses  Expense[]
+}
+
+model Expense {
+  id          String           @id @default(uuid())
+  expenseDate DateTime
+  title       String
+  amount      Decimal          @db.Decimal(12, 2)
+  currency    Currency
+  categoryId  String
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  category    ExpenseCategory  @relation(fields: [categoryId], references: [id])
+}

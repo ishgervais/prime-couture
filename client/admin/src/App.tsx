@@ -15,6 +15,7 @@ import NewSalePage from './pages/NewSalePage'
 import SaleDetailPage from './pages/SaleDetailPage'
 import ClientsAdminPage from './pages/ClientsAdminPage'
 import ClientDetailPage from './pages/ClientDetailPage'
+import ExpensesPage from './pages/ExpensesPage'
 
 export default function App() {
   return (
@@ -82,6 +83,14 @@ export default function App() {
           element={
             <Layout>
               <ClientDetailPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/expenses"
+          element={
+            <Layout>
+              <ExpensesPage />
             </Layout>
           }
         />

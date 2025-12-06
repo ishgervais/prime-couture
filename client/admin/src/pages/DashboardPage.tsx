@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { dashboardApi, salesApi } from '../api'
+import { dashboardApi, salesApi, expensesApi } from '../api'
 import {
   Package,
   ShoppingCart,
@@ -10,6 +10,7 @@ import {
   Clock3,
   CheckCircle2,
   TrendingUp,
+  Wallet,
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -24,6 +25,14 @@ export default function DashboardPage() {
     queryKey: ['sales-summary-dashboard', year],
     queryFn: () => salesApi.summary(year === 'all' ? undefined : year === 'current' ? new Date().getFullYear().toString() : year),
   })
+  const { data: expenseSummary } = useQuery({
+    queryKey: ['expenses-summary-dashboard', year],
+    queryFn: () => expensesApi.summary(year === 'all' ? undefined : year === 'current' ? new Date().getFullYear().toString() : year),
+  })
+  const { data: expensesMonthly, isLoading: loadingExpensesMonthly } = useQuery({
+    queryKey: ['expenses-monthly', year],
+    queryFn: () => expensesApi.monthly(year === 'all' ? 'all' : year === 'current' ? new Date().getFullYear().toString() : year),
+  })
 
   const opsCards = [
     { label: 'Products', value: data?.products ?? '--', accent: '#0ea5e9', Icon: Package },
@@ -36,14 +45,33 @@ export default function DashboardPage() {
     { label: 'Outstanding (RWF)', value: salesSummary ? Math.round(salesSummary.totalOutstandingAmount).toLocaleString() : '--', accent: '#ef4444', Icon: Clock3 },
     { label: 'Paid (RWF)', value: salesSummary ? Math.round(salesSummary.totalPaidAmount).toLocaleString() : '--', accent: '#2563eb', Icon: CheckCircle2 },
     { label: 'Profit (RWF)', value: salesSummary ? Math.round(salesSummary.totalProfit).toLocaleString() : '--', accent: '#8b5cf6', Icon: TrendingUp },
+    { label: 'Expenses (RWF)', value: expenseSummary ? Math.round(expenseSummary.totalAmount).toLocaleString() : '--', accent: '#f97316', Icon: Wallet },
   ]
 
   const months = useMemo(() => monthly?.months ?? [], [monthly])
   const availableYears = useMemo(() => ['current', 'all', ...(monthly?.availableYears ?? [])], [monthly])
-  const maxValue = useMemo(() => Math.max(...months.map((m: any) => Number(m.total ?? 0)), 0), [months])
+  const paddedSalesMonths = useMemo(() => {
+    const map = new Map<number, any>(months.map((m: any) => [Number(m.month), m]))
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1
+      const found = map.get(month)
+      return { month, total: Number(found?.total ?? 0), profit: Number(found?.profit ?? 0) }
+    })
+  }, [months])
+  const maxValue = useMemo(() => Math.max(...paddedSalesMonths.map((m: any) => Number(m.total ?? 0)), 0), [paddedSalesMonths])
+  const expenseMonths = useMemo(() => expensesMonthly?.months ?? [], [expensesMonthly])
+  const paddedExpenseMonths = useMemo(() => {
+    const map = new Map<number, any>(expenseMonths.map((m: any) => [Number(m.month), m]))
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1
+      const found = map.get(month)
+      return { month, total: Number(found?.total ?? 0) }
+    })
+  }, [expenseMonths])
+  const maxExpenseValue = useMemo(() => Math.max(...paddedExpenseMonths.map((m: any) => Number(m.total ?? 0)), 0), [paddedExpenseMonths])
   const topMonths = useMemo(
     () =>
-      [...months]
+      [...paddedSalesMonths]
         .sort((a: any, b: any) => Number(b.total ?? 0) - Number(a.total ?? 0))
         .slice(0, 3)
         .map((m: any) => ({
@@ -51,11 +79,11 @@ export default function DashboardPage() {
           total: Number(m.total ?? 0),
           profit: Number(m.profit ?? 0),
         })),
-    [months],
+    [paddedSalesMonths],
   )
   const lowMonths = useMemo(
     () =>
-      [...months]
+      [...paddedSalesMonths]
         .sort((a: any, b: any) => Number(a.total ?? 0) - Number(b.total ?? 0))
         .slice(0, 3)
         .map((m: any) => ({
@@ -63,7 +91,7 @@ export default function DashboardPage() {
           total: Number(m.total ?? 0),
           profit: Number(m.profit ?? 0),
         })),
-    [months],
+    [paddedSalesMonths],
   )
 
   const chip = (color: string) => (
@@ -150,14 +178,46 @@ export default function DashboardPage() {
         {loadingMonthly && <p>Loading chart…</p>}
         {!loadingMonthly && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: '0.5rem', alignItems: 'end' }}>
-            {months.map((m: any) => {
+            {paddedSalesMonths.map((m: any) => {
               const height = maxValue ? Math.max((Number(m.total ?? 0) / maxValue) * 160, 4) : 4
               return (
                 <div key={m.month} style={{ textAlign: 'center', fontSize: '0.85rem' }}>
                   <div
                     style={{
                       height: `${height}px`,
-                      background: '#0f172a',
+                      background: 'rgba(37, 99, 235, 0.5)',
+                      borderRadius: '6px',
+                      transition: 'height 0.2s ease',
+                    }}
+                    title={`${m.total} total`}
+                  ></div>
+                  <div style={{ marginTop: '0.35rem', color: '#64748b' }}>{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][m.month - 1]}</div>
+                  <div style={{ color: '#0f172a', fontWeight: 600 }}>{Number(m.total ?? 0).toLocaleString()}</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginTop: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Expenses by month</h3>
+            <p style={{ margin: 0, color: '#64748b' }}>Track spending trends</p>
+          </div>
+        </div>
+        {loadingExpensesMonthly && <p>Loading chart…</p>}
+        {!loadingExpensesMonthly && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0,1fr))', gap: '0.5rem', alignItems: 'end' }}>
+            {paddedExpenseMonths.map((m: any) => {
+              const height = maxExpenseValue ? Math.max((Number(m.total ?? 0) / maxExpenseValue) * 160, 4) : 4
+              return (
+                <div key={m.month} style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                  <div
+                    style={{
+                      height: `${height}px`,
+                      background: 'rgba(249, 115, 22, 0.45)',
                       borderRadius: '6px',
                       transition: 'height 0.2s ease',
                     }}

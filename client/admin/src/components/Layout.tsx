@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Package, Boxes, Tags, ListChecks, ChartLine, User, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
+import { LayoutDashboard, Package, Boxes, Tags, ListChecks, ChartLine, User, ChevronLeft, ChevronRight, LogOut, Wallet } from 'lucide-react'
 import { authApi } from '../api'
 import { useAuth } from '../context/AuthContext'
 import { useState } from 'react'
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
   { to: '/products', label: 'Products', Icon: Package },
    { to: '/sales', label: 'Sales', Icon: ChartLine },
+  { to: '/expenses', label: 'Expenses', Icon: Wallet },
   { to: '/collections', label: 'Collections', Icon: Boxes },
   { to: '/categories', label: 'Categories', Icon: Tags },
   { to: '/orders', label: 'Orders', Icon: ListChecks },
