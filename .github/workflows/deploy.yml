@@ -51,6 +51,7 @@ jobs:
           if [ -z "$PORT" ]; then PORT=22; fi
           rsync -avz --delete \
             --exclude='.git' --exclude='node_modules' --exclude='dist' \
+            --exclude='deploy/env' --exclude='deploy/.env' \
             -e "ssh -p $PORT -o StrictHostKeyChecking=no" \
             ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.REMOTE_PATH }}/
 
