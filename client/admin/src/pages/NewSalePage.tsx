@@ -41,8 +41,8 @@ export default function NewSalePage() {
         quantity: form.quantity || 1,
       }),
     onSuccess: () => {
-      setMessage('Sale recorded')
-      navigate('/sales')
+      setMessage('Sale recorded successfully.')
+      setTimeout(() => navigate('/sales'), 400)
       qc.invalidateQueries({ queryKey: ['sales'] })
     },
     onError: (err: any) => setError(err?.response?.data?.message || 'Failed to create sale'),
@@ -90,6 +90,16 @@ export default function NewSalePage() {
             createSale.mutate()
           }}
         >
+          {message && (
+            <div style={{ gridColumn: '1 / -1', background: '#ecfdf3', color: '#166534', padding: '0.75rem 1rem', borderRadius: 10 }}>
+              {message}
+            </div>
+          )}
+          {error && (
+            <div style={{ gridColumn: '1 / -1', background: '#fef2f2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: 10 }}>
+              {error}
+            </div>
+          )}
           <div style={{ gridColumn: '1 / -1', display: 'grid', gap: '0.35rem' }}>
             <label style={{ color: '#0f172a', fontWeight: 600 }}>
               Search client <span style={{ color: '#dc2626' }}>*</span>

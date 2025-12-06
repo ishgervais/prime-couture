@@ -157,6 +157,7 @@ export default function ExpensesPage() {
   })
   const [newCategory, setNewCategory] = useState('')
   const [showCreate, setShowCreate] = useState(false)
+  const [success, setSuccess] = useState<string | null>(null)
 
   const submitExpense = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,6 +176,7 @@ export default function ExpensesPage() {
       })
       qc.invalidateQueries({ queryKey: ['expenses'] })
       qc.invalidateQueries({ queryKey: ['expenses-summary-dashboard'] })
+      setSuccess('Expense created successfully.')
     } catch (err: any) {
       window.alert(err?.response?.data?.message || 'Failed to create expense')
     }
@@ -187,6 +189,7 @@ export default function ExpensesPage() {
       await expensesApi.createCategory(newCategory.trim())
       setNewCategory('')
       qc.invalidateQueries({ queryKey: ['expense-categories'] })
+      setSuccess('Category created successfully.')
     } catch (err: any) {
       window.alert(err?.response?.data?.message || 'Failed to create category')
     }
@@ -304,6 +307,11 @@ export default function ExpensesPage() {
                 </button>
               </form>
             </div>
+          </div>
+        )}
+        {success && (
+          <div style={{ background: '#ecfdf3', color: '#166534', padding: '0.75rem 1rem', borderRadius: 10, marginBottom: '0.75rem' }}>
+            {success}
           </div>
         )}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
